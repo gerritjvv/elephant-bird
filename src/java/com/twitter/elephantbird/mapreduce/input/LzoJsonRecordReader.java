@@ -2,10 +2,15 @@ package com.twitter.elephantbird.mapreduce.input;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapWritable;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapred.join.TupleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.LineReader;
 import org.json.simple.JSONObject;
@@ -86,18 +91,39 @@ public class LzoJsonRecordReader extends LzoRecordReader<LongWritable, MapWritab
     return false;
   }
 
+  private MapWritable walkJson(JSONObject jsonObj) {
+    MapWritable v = new MapWritable();
+
+    try {
+      for (Object key: jsonObj.keySet()) {
+        Text mapKey = new Text(key.toString());
+        Object value = jsonObj.get(key);
+        if (value instanceof String) {
+          Text mapValue = new Text(value.toString());
+          v.put(mapKey, mapValue);
+        } else if (value instanceof Number) {
+          LongWritable mapValue = new LongWritable(((Number) value).longValue());
+          v.put(mapKey, mapValue);
+        } else if (value instanceof Map) {
+          MapWritable mapValue = walkJson((JSONObject) value);
+          v.put(mapKey, mapValue);
+        } // else if (value instanceof List) {
+          // TupleWritable mapValue = new TupleWritable((Writable[]) ((List) value).toArray());
+          //v.put(mapKey, mapValue);
+        // }
+      }
+    } catch (NumberFormatException e) {
+      return null;
+    };
+
+    return v;
+  }
+
   protected boolean decodeLineToJson() {
     try {
       JSONObject jsonObj = (JSONObject)jsonParser_.parse(currentLine_.toString());
-      for (Object key: jsonObj.keySet()) {
-        Text mapKey = new Text(key.toString());
-        Text mapValue = new Text();
-        if (jsonObj.get(key) != null) {
-          mapValue.set(jsonObj.get(key).toString());
-        }
-
-        value_.put(mapKey, mapValue);
-      }
+      MapWritable jsonMap = walkJson(jsonObj);
+      value_.putAll(jsonMap);
       return true;
     } catch (ParseException e) {
       LOG.warn("Could not json-decode string: " + currentLine_, e);

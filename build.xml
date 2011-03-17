@@ -146,7 +146,6 @@
   </macrodef>
 
   <target name="compile-protobuf" depends="init" unless="noprotobuf">
-    <generate-thrift />
     <generate-protobuf />
     <compile-generated-protobuf />
     <compile-java-protobuf />
