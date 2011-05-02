@@ -56,6 +56,8 @@ import com.twitter.elephantbird.util.Protobufs;
 public class LzoProtobuffB64LinePigStore extends PigStorage implements
 		LoadMetadata {
 
+	enum FORMAT{ BAD_BASE64 };
+	
 	String clsMapping;
 
 	private ProtobufConverter<? extends Message> protoConverter;
@@ -136,18 +138,30 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			// READ the ProtoBuff Value (String => Decode => Parse => Message =>
 			// Tuple)
 			Text value = (Text) in.getCurrentValue();
+			if(value.getLength() > 0){
+				// incrCounter(LzoProtobuffB64LinePigStoreCounts.LinesRead, 1L);
+				byte[] base64Decoded = null; 
+				try{
+					base64Decoded = base64.decode(value
+							.toString().getBytes("UTF-8"));
+				}catch(Throwable t){
+					//fixing a bug that even if some bytes are read on a 0 content length file
+					//some bytes get through and the base64 function throws an ArrayOutOfBounds Exception.
+					incrCounter(FORMAT.BAD_BASE64, 1L);
+					return null;
+				}
+				
+				Message protoValue = protoConverter.fromBytes(base64Decoded);
+				
+				if (protoValue == null) {
+					throw new RuntimeException("Error converting line to protobuff");
+				}
 
-			// incrCounter(LzoProtobuffB64LinePigStoreCounts.LinesRead, 1L);
-
-			Message protoValue = protoConverter.fromBytes(base64.decode(value
-					.toString().getBytes("UTF-8")));
-
-			if (protoValue == null) {
-				throw new RuntimeException("Error converting line to protobuff");
+				return new ProtobufTuple(protoValue, requiredIndices);
+			}else{
+				return null;
 			}
-
-			return new ProtobufTuple(protoValue, requiredIndices);
-
+			
 		} catch (Exception e) {
 			int errCode = 6018;
 			String errMsg = "Error while reading input";
@@ -157,7 +171,8 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 	}
 
-	protected void incrCounter(Enum<?> key, long incr) {
+	@SuppressWarnings("rawtypes")
+	protected void incrCounter(Enum key, long incr) {
 		counterHelper.incrCounter(key, incr);
 	}
 
