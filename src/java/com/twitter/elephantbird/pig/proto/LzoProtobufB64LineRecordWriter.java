@@ -17,7 +17,7 @@ import org.apache.pig.data.Tuple;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
 import com.hadoop.compression.lzo.LzopCodec;
-import com.twitter.elephantbird.pig8.util.PigToProtobuf;
+import com.twitter.elephantbird.pig.util.PigToProtobuf;
 import com.twitter.elephantbird.util.Protobufs;
 
 /**
@@ -28,7 +28,6 @@ import com.twitter.elephantbird.util.Protobufs;
  */
 public class LzoProtobufB64LineRecordWriter extends
 		RecordWriter<Writable, Tuple> {
-
 
 	Path outputFile;
 
@@ -102,7 +101,7 @@ public class LzoProtobufB64LineRecordWriter extends
 			lzoOut.write(base64.encode(pigToProto
 					.tupleToMessage(builder, tuple).toByteArray()));
 			lzoOut.write("\n".getBytes("UTF-8"));
-			
+
 		}
 
 	}

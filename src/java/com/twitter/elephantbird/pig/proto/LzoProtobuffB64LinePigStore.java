@@ -29,7 +29,6 @@ import com.google.protobuf.Message;
 import com.hadoop.compression.lzo.LzopCodec;
 import com.twitter.elephantbird.mapreduce.input.LzoTextInputFormat;
 import com.twitter.elephantbird.mapreduce.io.ProtobufConverter;
-import com.twitter.elephantbird.pig8.util.PigCounterHelper;
 import com.twitter.elephantbird.util.Protobufs;
 
 /**
