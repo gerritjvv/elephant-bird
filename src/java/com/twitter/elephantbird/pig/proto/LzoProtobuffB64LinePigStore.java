@@ -116,10 +116,12 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 					.getUDFProperties(this.getClass()).getProperty(signature);
 
 			if (value != null) {
-				this.requiredIndices = (int[]) ObjectSerializer
+				requiredIndices = (int[]) ObjectSerializer
 						.deserialize(value);
+				Arrays.sort(requiredIndices);
 			}
 
+			
 		}
 	}
 
@@ -211,9 +213,16 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			int requiredIndices[] = new int[requiredFields.size()];
 
 			for (int i = 0; i < requiredFields.size(); i++) {
+				RequiredField field = requiredFields.get(i);
+				if(field.getSubFields() != null){
+					System.out.println("Subfields are not supported: " +
+							Arrays.toString(field.getSubFields().toArray()));
+					
+				}
 				requiredIndices[i] = requiredFields.get(i).getIndex();
 			}
 
+			System.out.println("RequiredIndices: " + Arrays.toString(requiredIndices));
 			// we must sort this array. The logic that reads from it required
 			// this.
 			// this is a map between the required Index and the real index

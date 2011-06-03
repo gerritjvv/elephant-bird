@@ -1,5 +1,6 @@
 package com.twitter.elephantbird.pig.proto;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -77,7 +78,7 @@ public class ProtobufToPig {
           tuple.set(curField++, singleFieldToTuple(fieldDescriptor, fieldValue));
         }
       }
-    } catch (ExecException e) {
+    } catch (IOException e) {
       LOG.warn("Could not convert msg " + msg + " to tuple", e);
     }
 
@@ -92,7 +93,7 @@ public class ProtobufToPig {
    * @return the object representing fieldValue in Pig -- either a bag or a tuple.
    */
   @SuppressWarnings("unchecked")
-  protected Object messageToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
+  protected Object messageToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) throws IOException {
     assert fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE : "messageToTuple called with field of type " + fieldDescriptor.getType();
 
     if (fieldDescriptor.isRepeated()) {

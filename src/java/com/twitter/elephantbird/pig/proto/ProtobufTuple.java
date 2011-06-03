@@ -24,130 +24,133 @@ import com.google.protobuf.Message.Builder;
 public class ProtobufTuple implements Tuple {
 
 	private static final long serialVersionUID = 8468589454361280269L;
+	private Tuple realTuple;
 
-	private final Message msg_;
-	private final Descriptor descriptor_;
-	private final Tuple realTuple_;
-	private final Set<Integer> materializedFieldSet_;
-	private final List<FieldDescriptor> fieldDescriptors_;
-	private final ProtobufToPig protoConv_;
-	private final int protoSize_;
-	private boolean ignoreMessage_ = false;
-	private int[] requiredColumns_;
+	private static final ProtobufToPig protoToPig = new ProtobufToPig();
+	
+	Message msg;
+	int[] requiredColumns;
+	
+	public ProtobufTuple(){
 
-	public ProtobufTuple(Message msg, int[] requiredColumns) {
-		requiredColumns_ = requiredColumns;
-		msg_ = msg;
-		descriptor_ = msg.getDescriptorForType();
-		fieldDescriptors_ = descriptor_.getFields();
-		protoSize_ = fieldDescriptors_.size();
-		protoConv_ = new ProtobufToPig();
+		realTuple = TupleFactory.getInstance().newTuple();
+		
+	}
+	
+	public ProtobufTuple(Message msg, int[] requiredColumns) throws IOException {
+		this.msg = msg;
+		this.requiredColumns = requiredColumns;
+		
+		Descriptor descriptor = msg.getDescriptorForType();
+		List<FieldDescriptor> fieldDescriptors = descriptor.getFields();
 		
 		//the tuple length depends if we have a required columns list (i.e. column pruning is used)
 		//or none.
-		int len = (requiredColumns == null) ? protoSize_
-				: requiredColumns.length;
+		
 
-		realTuple_ = TupleFactory.getInstance().newTuple(len);
-		materializedFieldSet_ = Sets.newHashSetWithExpectedSize(len);
+		
+		
+		if(requiredColumns == null || requiredColumns.length <= 0){
+			int len = fieldDescriptors.size();
+			realTuple = TupleFactory.getInstance().newTuple(len);
+			
+			for(int i = 0; i < len; i++){
+			         copyMessageValueToTuple(i, i, fieldDescriptors, msg, realTuple);
+			}
+			
+		}else{
+			int len = requiredColumns.length;
+			realTuple = TupleFactory.getInstance().newTuple(len);
+			
+			for(int i = 0; i < len; i++){
+		         copyMessageValueToTuple(requiredColumns[i], i, fieldDescriptors, msg, realTuple);
+			}
+		
+			
+		}
 		
 	}
 
-	public ProtobufTuple(Message msg) {
+	private static final void copyMessageValueToTuple(int index, int tupleIndex, List<FieldDescriptor> fieldDescriptors, Message msg,
+			Tuple tuple) throws IOException {
+		//get message
+		FieldDescriptor fieldDescriptor = fieldDescriptors.get(index);
+		
+		Object fieldValue = msg.getField(fieldDescriptor);
+		if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
+			tuple.set(tupleIndex,
+					protoToPig.messageToTuple(fieldDescriptor, fieldValue));
+		} else {
+			tuple.set(tupleIndex, protoToPig.singleFieldToTuple(
+					fieldDescriptor, fieldValue));
+		}
+	}
+
+	public ProtobufTuple(Message msg) throws IOException {
 		this(msg, null);
 	}
 
 	@Override
 	public void append(Object obj) {
-		realTuple_.append(obj);
+		realTuple.append(obj);
 	}
 
-	@Override
-	public Object get(int idx) throws ExecException {
-		//get the real index to be used if column pruning is used.
-		int index = (requiredColumns_ == null) ? idx : requiredColumns_[idx];
 	
-		if (!(ignoreMessage_  ||  materializedFieldSet_.contains(index))) {
-			
-			
-			FieldDescriptor fieldDescriptor = fieldDescriptors_.get(index);
-			Object fieldValue = msg_.getField(fieldDescriptor);
-			if (fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE) {
-				realTuple_.set(idx,
-						protoConv_.messageToTuple(fieldDescriptor, fieldValue));
-			} else {
-				realTuple_.set(idx, protoConv_.singleFieldToTuple(
-						fieldDescriptor, fieldValue));
-			}
-			
-			//the meterializedFieldSet reflects the column pruning index
-			materializedFieldSet_.add(index);
-		}
-		
-		return realTuple_.get(idx);
-	}
-
 	@Override
 	public List<Object> getAll() {
-		convertAll();
-		return realTuple_.getAll();
+		return realTuple.getAll();
 	}
 
 	@Override
 	public long getMemorySize() {
 		// The protobuf estimate is obviously inaccurate.
-		return msg_.getSerializedSize() + realTuple_.getMemorySize();
+		return msg.getSerializedSize() + realTuple.getMemorySize();
 	}
 
 	@Override
 	public byte getType(int idx) throws ExecException {
-		get(idx);
-		return realTuple_.getType(idx);
+		return realTuple.getType(idx);
 	}
 
 	@Override
 	public boolean isNull() {
-		return realTuple_.isNull();
+		return realTuple.isNull();
 	}
 
 	@Override
 	public boolean isNull(int idx) throws ExecException {
-		get(idx);
-		return realTuple_.isNull(idx);
+		return realTuple.isNull(idx);
 	}
 
 	@Override
-	public void reference(Tuple arg0) {
-		realTuple_.reference(arg0);
+	public void reference(Tuple arg) {
+		realTuple.reference(arg);
 		// Ignore the Message from now on.
-		ignoreMessage_ = true;
 	}
 
 	@Override
 	public void set(int idx, Object val) throws ExecException {
-		realTuple_.set(idx, val);
-		materializedFieldSet_.add(idx);
+		realTuple.set(idx, val);
 	}
 
 	@Override
 	public void setNull(boolean isNull) {
-		realTuple_.setNull(isNull);
+		realTuple.setNull(isNull);
 	}
 
 	@Override
 	public int size() {
-		return realTuple_.size();
+		return realTuple.size();
 	}
 
 	@Override
 	public String toDelimitedString(String delim) throws ExecException {
-		convertAll();
-		return realTuple_.toDelimitedString(delim);
+		return realTuple.toDelimitedString(delim);
 	}
 
 	@Override
 	public void readFields(DataInput inp) throws IOException {
-		Builder builder = msg_.newBuilderForType();
+		Builder builder = msg.newBuilderForType();
 		try {
 			builder.mergeDelimitedFrom((DataInputStream) inp);
 		} catch (ClassCastException e) {
@@ -155,35 +158,23 @@ public class ProtobufTuple implements Tuple {
 					"Provided DataInput not instance of DataInputStream.", e);
 		}
 		Message msg = builder.build();
-		realTuple_.reference(new ProtobufTuple(msg, requiredColumns_));
+		realTuple.reference(new ProtobufTuple(msg, requiredColumns));
 	}
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		convertAll();
-		realTuple_.write(out);
+		realTuple.write(out);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public int compareTo(Object arg0) {
-		convertAll();
-		return realTuple_.compareTo(arg0);
+	public int compareTo(Object obj) {
+		return realTuple.compareTo(obj);
 	}
 
-	private void convertAll() {
-		int len = (requiredColumns_ == null) ? protoSize_
-				: requiredColumns_.length;
-
-		for (int i = 0; i < len; i++) {
-			if (!materializedFieldSet_.contains(i)) {
-				try {
-					get(i);
-				} catch (ExecException e) {
-					throw new RuntimeException("Unable to process field " + i
-							+ " of the protobuf", e);
-				}
-			}
-		}
+	
+	@Override
+	public Object get(int index) throws ExecException {
+		return realTuple.get(index);
 	}
 }
