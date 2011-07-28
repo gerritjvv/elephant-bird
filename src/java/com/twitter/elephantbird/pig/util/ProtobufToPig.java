@@ -1,5 +1,6 @@
 package com.twitter.elephantbird.pig.util;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Map;
 
@@ -93,7 +94,7 @@ public class ProtobufToPig {
    * @return the object representing fieldValue in Pig -- either a bag or a tuple.
    */
   @SuppressWarnings("unchecked")
-  protected Object messageToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
+ public Object messageToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
     assert fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE : "messageToTuple called with field of type " + fieldDescriptor.getType();
 
     if (fieldDescriptor.isRepeated()) {
@@ -101,15 +102,28 @@ public class ProtobufToPig {
       // of the underlying datatype, which in this case is a nested message.
       List<Message> messageList = (List<Message>) (fieldValue != null ? fieldValue : Lists.newArrayList());
 
-      // Since protobufs do not have a map type, we use CountedMap to fake it.  Whenever the protobuf has a repeated CountedMap in it,
+      // Since protobufs do not have a map type, we use anything ending with Map to fake it.  Whenever the protobuf has a repeated *Map in it:
       // we can force the type into a pig map type.
       if (coercionLevel_ == CoercionLevel.kAllowCoercionToPigMaps &&
-          fieldDescriptor.getMessageType().getName().equals(CountedMap.getDescriptor().getName())) {
-        Map<Object, Long> map = Maps.newHashMap();
+          fieldDescriptor.getMessageType().getName().endsWith("Map")) {
+        Map<Object, Object> map = Maps.newHashMap();
+        try{
         for (Message m : messageList) {
-          CountedMap cm = (CountedMap) m;
-          final Long curCount = map.get(cm.getKey());
-          map.put(cm.getKey(), (curCount == null ? 0L : curCount) + cm.getValue());
+        	Class cl=m.getClass();
+        	map.put(cl.getMethod("getKey").invoke(m), cl.getMethod("getValue").invoke(m));  // 2011.07.28, Demeter Sztanko: Made this generic, no need to use CountedMap anymore
+        }
+        }
+        catch(InvocationTargetException e)
+        {
+        	map.put("error", e.getMessage());
+        }
+        catch(IllegalAccessException e)
+        {
+        	map.put("error", e.getMessage());
+        }
+        catch(NoSuchMethodException e)
+        {
+        	map.put("error", e.getMessage());
         }
         return map;
       } else {
@@ -133,7 +147,7 @@ public class ProtobufToPig {
    * @throws ExecException if Pig decides to.  Shouldn't happen because we won't walk off the end of a tuple's field set.
    */
   @SuppressWarnings("unchecked")
-  protected Object singleFieldToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
+  public Object singleFieldToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
     assert fieldDescriptor.getType() != FieldDescriptor.Type.MESSAGE : "messageToFieldSchema called with field of type " + fieldDescriptor.getType();
 
     if (fieldDescriptor.isRepeated()) {

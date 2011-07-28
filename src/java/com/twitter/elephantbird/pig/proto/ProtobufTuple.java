@@ -16,6 +16,7 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Message;
 import com.google.protobuf.Message.Builder;
+import com.twitter.elephantbird.pig.util.ProtobufToPig;
 
 /**
  * This class wraps a protocol buffer message and attempts to delay parsing
