@@ -56,7 +56,7 @@ import com.twitter.elephantbird.util.Protobufs;
 public class LzoProtobuffB64LinePigStore extends PigStorage implements
 		LoadMetadata {
 
-	enum FORMAT{ BAD_BASE64 };
+	enum FORMAT{ BAD_BASE64, BADGPB, GENERAL_GPB_ERROR };
 	
 	String clsMapping;
 
@@ -156,11 +156,14 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 				Message protoValue = protoConverter.fromBytes(base64Decoded);
 				
 				if (protoValue == null) {
-					throw new RuntimeException("Error converting line to protobuff");
+					incrCounter(FORMAT.BADGPB, 1l);
+					return null;
+					//throw new RuntimeException("Error converting line to protobuff");
 				}
 
 				return new ProtobufTuple(protoValue, requiredIndices);
 			}else{
+				incrCounter(FORMAT.GENERAL_GPB_ERROR, 1l);
 				return null;
 			}
 			
