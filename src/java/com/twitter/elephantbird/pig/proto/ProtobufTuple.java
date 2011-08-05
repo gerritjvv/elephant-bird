@@ -4,6 +4,7 @@ import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -39,6 +40,12 @@ public class ProtobufTuple implements Tuple {
 	}
 	
 	public ProtobufTuple(Message msg, int[] requiredColumns) throws IOException {
+		if(msg == null){
+			this.msg = null;
+			realTuple = null;
+			
+		}else{
+			try{
 		this.msg = msg;
 		this.requiredColumns = requiredColumns;
 		
@@ -69,6 +76,10 @@ public class ProtobufTuple implements Tuple {
 		
 			
 		}
+			}catch(NullPointerException nullPionter){
+				System.out.println(nullPionter);
+			}
+		}
 		
 	}
 
@@ -93,59 +104,75 @@ public class ProtobufTuple implements Tuple {
 
 	@Override
 	public void append(Object obj) {
+		if(msg == null) return;
 		realTuple.append(obj);
 	}
 
 	
 	@Override
 	public List<Object> getAll() {
+		try{
+		if(msg == null) return null;
 		return realTuple.getAll();
+		}catch(NullPointerException e){
+			return new ArrayList<Object>();
+		}
 	}
 
 	@Override
 	public long getMemorySize() {
+		if(msg == null) return 0L;
 		// The protobuf estimate is obviously inaccurate.
 		return msg.getSerializedSize() + realTuple.getMemorySize();
 	}
 
 	@Override
 	public byte getType(int idx) throws ExecException {
+		if(msg == null) return (byte)0;
+		
 		return realTuple.getType(idx);
 	}
 
 	@Override
 	public boolean isNull() {
+		if(msg == null) return true;
 		return realTuple.isNull();
 	}
 
 	@Override
 	public boolean isNull(int idx) throws ExecException {
+		if(msg == null) return true;
 		return realTuple.isNull(idx);
 	}
 
 	@Override
 	public void reference(Tuple arg) {
+		if(msg == null) return;
 		realTuple.reference(arg);
 		// Ignore the Message from now on.
 	}
 
 	@Override
 	public void set(int idx, Object val) throws ExecException {
+		if(msg == null) return;
 		realTuple.set(idx, val);
 	}
 
 	@Override
 	public void setNull(boolean isNull) {
+		if(msg == null) return;
 		realTuple.setNull(isNull);
 	}
 
 	@Override
 	public int size() {
+		if(msg == null) return 0;
 		return realTuple.size();
 	}
 
 	@Override
 	public String toDelimitedString(String delim) throws ExecException {
+		if(msg == null) return null;
 		return realTuple.toDelimitedString(delim);
 	}
 
@@ -164,18 +191,21 @@ public class ProtobufTuple implements Tuple {
 
 	@Override
 	public void write(DataOutput out) throws IOException {
+		if(msg == null) return;
 		realTuple.write(out);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compareTo(Object obj) {
+		if(msg == null) return -1;
 		return realTuple.compareTo(obj);
 	}
 
 	
 	@Override
 	public Object get(int index) throws ExecException {
+		if(msg == null) return null;
 		return realTuple.get(index);
 	}
 }

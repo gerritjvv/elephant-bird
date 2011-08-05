@@ -1,8 +1,10 @@
 package com.twitter.elephantbird.pig.proto;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.fs.Path;
@@ -25,7 +27,12 @@ import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.impl.util.UDFContext;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedOutputStream;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Message;
+import com.google.protobuf.UnknownFieldSet;
 import com.hadoop.compression.lzo.LzopCodec;
 import com.twitter.elephantbird.mapreduce.input.LzoTextInputFormat;
 import com.twitter.elephantbird.mapreduce.io.ProtobufConverter;
@@ -157,12 +164,117 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 				
 				Message protoValue = protoConverter.fromBytes(base64Decoded);
 				
-				if (protoValue == null) {
-					incrCounter(FORMAT.BADGPB, 1l);
-					return null;
-					//throw new RuntimeException("Error converting line to protobuff");
-				}
-
+//				if (protoValue == null) {
+//					incrCounter(FORMAT.BADGPB, 1l);
+//					return null;
+//					//throw new RuntimeException("Error converting line to protobuff");
+//				}else{
+//					protoValue = null;
+//				}
+				protoValue = new Message() {
+					
+					@Override
+					public void writeTo(OutputStream arg0) throws IOException {
+						// TODO Auto-generated method stub
+						
+					}
+					
+					@Override
+					public void writeTo(CodedOutputStream arg0) throws IOException {
+						// TODO Auto-generated method stub
+						
+					}
+					
+					@Override
+					public void writeDelimitedTo(OutputStream arg0) throws IOException {
+						// TODO Auto-generated method stub
+						
+					}
+					
+					@Override
+					public ByteString toByteString() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public byte[] toByteArray() {
+						// TODO Auto-generated method stub
+						return new byte[]{};
+					}
+					
+					@Override
+					public boolean isInitialized() {
+						// TODO Auto-generated method stub
+						return true;
+					}
+					
+					@Override
+					public int getSerializedSize() {
+						// TODO Auto-generated method stub
+						return 0;
+					}
+					
+					@Override
+					public Builder toBuilder() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public Builder newBuilderForType() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public boolean hasField(FieldDescriptor arg0) {
+						// TODO Auto-generated method stub
+						return false;
+					}
+					
+					@Override
+					public UnknownFieldSet getUnknownFields() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public int getRepeatedFieldCount(FieldDescriptor arg0) {
+						// TODO Auto-generated method stub
+						return 0;
+					}
+					
+					@Override
+					public Object getRepeatedField(FieldDescriptor arg0, int arg1) {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public Object getField(FieldDescriptor arg0) {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public Descriptor getDescriptorForType() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public Message getDefaultInstanceForType() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+					
+					@Override
+					public Map<FieldDescriptor, Object> getAllFields() {
+						// TODO Auto-generated method stub
+						return null;
+					}
+				};
 				return new ProtobufTuple(protoValue, requiredIndices);
 			}else{
 				incrCounter(FORMAT.GENERAL_GPB_ERROR, 1l);
