@@ -1,10 +1,8 @@
 package com.twitter.elephantbird.pig.proto;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.fs.Path;
@@ -27,12 +25,7 @@ import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.impl.util.UDFContext;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.CodedOutputStream;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Message;
-import com.google.protobuf.UnknownFieldSet;
 import com.hadoop.compression.lzo.LzopCodec;
 import com.twitter.elephantbird.mapreduce.input.LzoTextInputFormat;
 import com.twitter.elephantbird.mapreduce.io.ProtobufConverter;
@@ -58,13 +51,15 @@ import com.twitter.elephantbird.util.Protobufs;
  * person=MyProtoClass<br/>
  * Then the this loader will get the MyProtoClass from the configuration and use
  * it to write all Tuples.
- *
+ * 
  */
 public class LzoProtobuffB64LinePigStore extends PigStorage implements
 		LoadMetadata {
 
-	enum FORMAT{ BAD_BASE64, BADGPB, GENERAL_GPB_ERROR };
-	
+	enum FORMAT {
+		BAD_BASE64, BADGPB, GENERAL_GPB_ERROR
+	};
+
 	String clsMapping;
 
 	private ProtobufConverter<? extends Message> protoConverter;
@@ -79,6 +74,7 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 	private String signature;
 
+	@SuppressWarnings("rawtypes")
 	private RecordReader reader;
 
 	protected enum LzoProtobuffB64LinePigStoreCounts {
@@ -125,162 +121,59 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 					.getUDFProperties(this.getClass()).getProperty(signature);
 
 			if (value != null) {
-				requiredIndices = (int[]) ObjectSerializer
-						.deserialize(value);
+				requiredIndices = (int[]) ObjectSerializer.deserialize(value);
 				Arrays.sort(requiredIndices);
 			}
 
-			
 		}
 	}
 
 	@Override
 	public Tuple getNext() throws IOException {
+		Tuple tuple = null;
 
 		try {
 			// check that the required columns indices have been read if any
 			checkRequiredColumnsInit();
 
-			
-			
-			if(!reader.nextKeyValue()) return null;
-			
+			Message protoValue = null;
 
-			// READ the ProtoBuff Value (String => Decode => Parse => Message =>
-			// Tuple)
-			Text value = (Text) reader.getCurrentValue();
-			if(value.getLength() > 0){
-				// incrCounter(LzoProtobuffB64LinePigStoreCounts.LinesRead, 1L);
-				byte[] base64Decoded = null; 
-				try{
-					base64Decoded = base64.decode(value
-							.toString().getBytes("UTF-8"));
-				}catch(Throwable t){
-					//fixing a bug that even if some bytes are read on a 0 content length file
-					//some bytes get through and the base64 function throws an ArrayOutOfBounds Exception.
-					incrCounter(FORMAT.BAD_BASE64, 1L);
-					return null;
+			// read while true
+			// we only break if we can read a correct value
+			while (reader.nextKeyValue()) {
+
+				Text value = (Text) reader.getCurrentValue();
+				if (value.getLength() > 0) {
+
+					byte[] base64Decoded = null;
+					try {
+						base64Decoded = base64.decode(value.toString()
+								.getBytes("UTF-8"));
+
+						protoValue = protoConverter.fromBytes(base64Decoded);
+
+						if (protoValue != null) {
+							tuple = new ProtobufTuple(protoValue,
+									requiredIndices);
+							break;
+						} else {
+							incrCounter(FORMAT.BADGPB, 1l);
+						}
+
+					} catch (Throwable t) {
+						// fixing a bug that even if some bytes are read on a 0
+						// content length file
+						// some bytes get through and the base64 function throws
+						// an ArrayOutOfBounds Exception.
+						incrCounter(FORMAT.BAD_BASE64, 1L);
+					}
+
+				} else {
+					incrCounter(FORMAT.GENERAL_GPB_ERROR, 1l);
 				}
-				
-				Message protoValue = protoConverter.fromBytes(base64Decoded);
-				
-//				if (protoValue == null) {
-//					incrCounter(FORMAT.BADGPB, 1l);
-//					return null;
-//					//throw new RuntimeException("Error converting line to protobuff");
-//				}else{
-//					protoValue = null;
-//				}
-				protoValue = new Message() {
-					
-					@Override
-					public void writeTo(OutputStream arg0) throws IOException {
-						// TODO Auto-generated method stub
-						
-					}
-					
-					@Override
-					public void writeTo(CodedOutputStream arg0) throws IOException {
-						// TODO Auto-generated method stub
-						
-					}
-					
-					@Override
-					public void writeDelimitedTo(OutputStream arg0) throws IOException {
-						// TODO Auto-generated method stub
-						
-					}
-					
-					@Override
-					public ByteString toByteString() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public byte[] toByteArray() {
-						// TODO Auto-generated method stub
-						return new byte[]{};
-					}
-					
-					@Override
-					public boolean isInitialized() {
-						// TODO Auto-generated method stub
-						return true;
-					}
-					
-					@Override
-					public int getSerializedSize() {
-						// TODO Auto-generated method stub
-						return 0;
-					}
-					
-					@Override
-					public Builder toBuilder() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public Builder newBuilderForType() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public boolean hasField(FieldDescriptor arg0) {
-						// TODO Auto-generated method stub
-						return false;
-					}
-					
-					@Override
-					public UnknownFieldSet getUnknownFields() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public int getRepeatedFieldCount(FieldDescriptor arg0) {
-						// TODO Auto-generated method stub
-						return 0;
-					}
-					
-					@Override
-					public Object getRepeatedField(FieldDescriptor arg0, int arg1) {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public Object getField(FieldDescriptor arg0) {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public Descriptor getDescriptorForType() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public Message getDefaultInstanceForType() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-					
-					@Override
-					public Map<FieldDescriptor, Object> getAllFields() {
-						// TODO Auto-generated method stub
-						return null;
-					}
-				};
-				return new ProtobufTuple(protoValue, requiredIndices);
-			}else{
-				incrCounter(FORMAT.GENERAL_GPB_ERROR, 1l);
-				return null;
+
 			}
-			
+
 		} catch (Exception e) {
 			int errCode = 6018;
 			String errMsg = "Error while reading input";
@@ -288,6 +181,7 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 					PigException.REMOTE_ENVIRONMENT, e);
 		}
 
+		return tuple;
 	}
 
 	@SuppressWarnings("rawtypes")
@@ -332,15 +226,16 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 			for (int i = 0; i < requiredFields.size(); i++) {
 				RequiredField field = requiredFields.get(i);
-				if(field.getSubFields() != null){
-					System.out.println("Subfields are not supported: " +
-							Arrays.toString(field.getSubFields().toArray()));
-					
+				if (field.getSubFields() != null) {
+					System.out.println("Subfields are not supported: "
+							+ Arrays.toString(field.getSubFields().toArray()));
+
 				}
 				requiredIndices[i] = requiredFields.get(i).getIndex();
 			}
 
-			System.out.println("RequiredIndices: " + Arrays.toString(requiredIndices));
+			System.out.println("RequiredIndices: "
+					+ Arrays.toString(requiredIndices));
 			// we must sort this array. The logic that reads from it required
 			// this.
 			// this is a map between the required Index and the real index
