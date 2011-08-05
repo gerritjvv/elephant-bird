@@ -72,6 +72,8 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 	private String signature;
 
+	private RecordReader reader;
+
 	protected enum LzoProtobuffB64LinePigStoreCounts {
 		LinesRead, ProtobufsRead
 	}
@@ -132,14 +134,14 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			// check that the required columns indices have been read if any
 			checkRequiredColumnsInit();
 
-			boolean notDone = in.nextKeyValue();
-			if (!notDone) {
-				return null;
-			}
+			
+			
+			if(!reader.nextKeyValue()) return null;
+			
 
 			// READ the ProtoBuff Value (String => Decode => Parse => Message =>
 			// Tuple)
-			Text value = (Text) in.getCurrentValue();
+			Text value = (Text) reader.getCurrentValue();
 			if(value.getLength() > 0){
 				// incrCounter(LzoProtobuffB64LinePigStoreCounts.LinesRead, 1L);
 				byte[] base64Decoded = null; 
@@ -189,6 +191,7 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 		protoConverter = ProtobufConverter.newInstance(ProtobufClassUtil
 				.loadProtoClass(clsMapping, split.getConf()));
 
+		this.reader = reader;
 	}
 
 	@Override
