@@ -4,8 +4,12 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.util.LineReader;
 
 /**
@@ -18,13 +22,20 @@ public class LzoLineRecordReader extends LzoRecordReader<LongWritable, Text> {
 
   private final LongWritable key_ = new LongWritable();
   private final Text value_ = new Text();
-
+  private Path splitPath = null;
+  
+  public Path getSplitPath() {
+		return splitPath;
+  }
+  
+  
   @Override
   public synchronized void close() throws IOException {
     if (in_ != null) {
       in_.close();
     }
   }
+  
 
   @Override
   public LongWritable getCurrentKey() throws IOException, InterruptedException {
@@ -66,5 +77,17 @@ public class LzoLineRecordReader extends LzoRecordReader<LongWritable, Text> {
 
     return false;
   }
+
+
+@Override
+public void initialize(InputSplit genericSplit, TaskAttemptContext context)
+		throws IOException, InterruptedException {
+	
+	FileSplit fileSplit = (FileSplit) genericSplit;
+	
+	splitPath = fileSplit.getPath();
+	
+	super.initialize(genericSplit, context);
+}
 }
 

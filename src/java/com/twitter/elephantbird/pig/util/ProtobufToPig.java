@@ -221,7 +221,7 @@ public class ProtobufToPig {
    */
   public Schema toSchema(Descriptor msgDescriptor) {
     Schema schema = new Schema();
-
+    
     try {
       // Walk through all the possible fields in the message.
       for (FieldDescriptor fieldDescriptor : msgDescriptor.getFields()) {

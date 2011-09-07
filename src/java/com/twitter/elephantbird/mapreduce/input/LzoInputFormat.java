@@ -30,7 +30,7 @@ import com.hadoop.compression.lzo.LzoIndex;
 public abstract class LzoInputFormat<K, V> extends FileInputFormat<K, V> {
   private static final Logger LOG = LoggerFactory.getLogger(LzoInputFormat.class);
 
-  private final Map<Path, LzoIndex> indexes_ = new HashMap<Path, LzoIndex>();
+  protected final Map<Path, LzoIndex> indexes_ = new HashMap<Path, LzoIndex>();
 
   private final PathFilter visibleLzoFilter = new PathFilter() {
 

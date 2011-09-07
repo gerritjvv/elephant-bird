@@ -1,10 +1,15 @@
 package com.twitter.elephantbird.pig.proto;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -20,16 +25,21 @@ import org.apache.pig.ResourceStatistics;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.builtin.PigStorage;
+import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.logicalLayer.FrontendException;
+import org.apache.pig.impl.logicalLayer.schema.Schema;
+import org.apache.pig.impl.logicalLayer.schema.Schema.FieldSchema;
 import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.impl.util.UDFContext;
 
 import com.google.protobuf.Message;
 import com.hadoop.compression.lzo.LzopCodec;
-import com.twitter.elephantbird.mapreduce.input.LzoTextInputFormat;
-import com.twitter.elephantbird.mapreduce.io.ProtobufConverter;
+import com.twitter.elephantbird.mapreduce.input.LzoLineRecordReader;
+import com.twitter.elephantbird.mapreduce.input.LzoTextPartitionFilterInputFormat;
 import com.twitter.elephantbird.pig.util.ProtobufToPig;
+import com.twitter.elephantbird.util.PathPartitionHelper;
 import com.twitter.elephantbird.util.Protobufs;
 
 /**
@@ -62,11 +72,10 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 	String clsMapping;
 
-	private ProtobufConverter<? extends Message> protoConverter;
-	private final Base64 base64 = new Base64();
 	private final ProtobufToPig protoToPig = new ProtobufToPig();
 
 	private int[] requiredIndices = null;
+	private int[] requiredPartitionIndices = null;
 
 	private boolean requiredIndicesInitialized = false;
 
@@ -74,8 +83,26 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 	private String signature;
 
-	@SuppressWarnings("rawtypes")
-	private RecordReader reader;
+	Method newBuilder;
+
+	/**
+	 * Implements the logic for searching partition keys and applying parition
+	 * filtering
+	 */
+	transient PathPartitionHelper pathPartitionerHelper = new PathPartitionHelper();
+
+	private LzoLineRecordReader reader;
+
+	transient Set<String> partitionColumns = null;
+	/**
+	 * Length of schema tuple
+	 */
+	transient int schemaLength = 0;
+
+	transient private String[] partitionKeys = null;
+	transient private Map<String, String> partitionValues = null;
+
+	transient private Path currentPath = null;
 
 	protected enum LzoProtobuffB64LinePigStoreCounts {
 		LinesRead, ProtobufsRead
@@ -94,7 +121,7 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 	@SuppressWarnings("rawtypes")
 	@Override
 	public InputFormat getInputFormat() {
-		return new LzoTextInputFormat();
+		return new LzoTextPartitionFilterInputFormat(getClass(), signature);
 	}
 
 	@Override
@@ -120,11 +147,56 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			String value = UDFContext.getUDFContext()
 					.getUDFProperties(this.getClass()).getProperty(signature);
 
+			int requiredIndicesAll[] = null;
+			Set<Integer> requiredIndicesSet = new HashSet<Integer>();
+			Set<Integer> keysIndicesSet = new HashSet<Integer>();
+
+			int len = schemaLength - partitionKeys.length;
+
 			if (value != null) {
-				requiredIndices = (int[]) ObjectSerializer.deserialize(value);
-				Arrays.sort(requiredIndices);
+				requiredIndicesAll = (int[]) ObjectSerializer
+						.deserialize(value);
+				Arrays.sort(requiredIndicesAll);
+				for (int indice : requiredIndicesAll) {
+
+					if (indice < len) {
+						requiredIndicesSet.add(new Integer(indice));
+					} else {
+						System.out.println("Adding index from pig: " + indice + " translate to " + (indice-len));
+						keysIndicesSet.add(new Integer(indice - len));
+					}
+
+				}
+			} else {
+				for (int i = 0; i < len; i++) {
+					requiredIndicesSet.add(new Integer(i));
+				}
+				for (int i = 0; i < partitionKeys.length; i++) {
+					keysIndicesSet.add(new Integer(i));
+				}
 			}
 
+			requiredIndices = new int[requiredIndicesSet.size()];
+			requiredPartitionIndices = new int[keysIndicesSet.size()];
+
+			int index = 0;
+			for (Integer i : requiredIndicesSet)
+				requiredIndices[index++] = i.intValue();
+			index = 0;
+			for (Integer i : keysIndicesSet)
+				requiredPartitionIndices[index++] = i.intValue();
+
+			Arrays.sort(requiredIndices);
+			Arrays.sort(requiredPartitionIndices);
+
+			System.out.println("SchemaLength: " + schemaLength + " Length: "
+					+ len);
+			System.out.println("Partition Keys: "
+					+ Arrays.toString(partitionKeys));
+			System.out.println("RequiredIndices: "
+					+ Arrays.toString(requiredIndices));
+			System.out.println("RequiredPartitionIndices: "
+					+ Arrays.toString(requiredPartitionIndices));
 		}
 	}
 
@@ -136,7 +208,7 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			// check that the required columns indices have been read if any
 			checkRequiredColumnsInit();
 
-			Message protoValue = null;
+			boolean printedError = false;
 
 			// read while true
 			// we only break if we can read a correct value
@@ -145,27 +217,55 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 				Text value = (Text) reader.getCurrentValue();
 				if (value.getLength() > 0) {
 
-					byte[] base64Decoded = null;
 					try {
-						base64Decoded = base64.decode(value.toString()
-								.getBytes("UTF-8"));
-
-						protoValue = protoConverter.fromBytes(base64Decoded);
-
+						Message.Builder builder = (Message.Builder) newBuilder
+								.invoke(null, new Object[] {});
+						Message protoValue = builder.mergeFrom(
+								com.twitter.elephantbird.util.utf.Base64
+										.decodeBase64(value.toString()))
+								.build();
 						if (protoValue != null) {
-							tuple = new ProtobufTuple(protoValue,
-									requiredIndices);
+
+							if (requiredIndices.length > 0) {
+								tuple = new ProtobufTuple(protoValue,
+										requiredIndices);
+							} else {
+								tuple = TupleFactory.getInstance().newTuple();
+							}
+
+							Path path = reader.getSplitPath();
+
+							if (currentPath == null
+									|| !currentPath.equals(path)) {
+								partitionValues = (partitionKeys == null) ? null
+										: pathPartitionerHelper
+												.getPathPartitionKeyValues(path
+														.toString());
+								currentPath = path;
+							}
+
+							if (requiredPartitionIndices.length > 0) {
+
+								for (int indice : requiredPartitionIndices) {
+									tuple.append(partitionValues
+											.get(partitionKeys[indice]));
+								}
+
+							}
+
+
 							break;
 						} else {
 							incrCounter(FORMAT.BADGPB, 1l);
 						}
 
 					} catch (Throwable t) {
-						// fixing a bug that even if some bytes are read on a 0
-						// content length file
-						// some bytes get through and the base64 function throws
-						// an ArrayOutOfBounds Exception.
-						incrCounter(FORMAT.BAD_BASE64, 1L);
+						if (!printedError) {
+							t.printStackTrace();
+							printedError = true;
+
+						}
+						incrCounter(FORMAT.BADGPB, 1L);
 					}
 
 				} else {
@@ -194,19 +294,53 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 	public void prepareToRead(RecordReader reader, PigSplit split) {
 		super.prepareToRead(reader, split);
 
-		protoConverter = ProtobufConverter.newInstance(ProtobufClassUtil
-				.loadProtoClass(clsMapping, split.getConf()));
+		Class<? extends com.google.protobuf.Message> cls = (Class<? extends Message>) ProtobufClassUtil
+				.loadProtoClass(clsMapping, split.getConf());
 
-		this.reader = reader;
+		try {
+			newBuilder = cls.getMethod("newBuilder", new Class[] {});
+		} catch (Throwable t) {
+			throw new RuntimeException(t);
+		}
+
+		// save schema length
+		Schema schema = protoToPig.toSchema(Protobufs
+				.getMessageDescriptor(ProtobufClassUtil.loadProtoClass(
+						clsMapping, split.getConf())));
+
+		try {
+			partitionKeys = getPartitionKeys(null, null);
+
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		schemaLength = schema.size() + partitionKeys.length;
+
+		this.reader = (LzoLineRecordReader) reader;
 	}
 
 	@Override
 	public ResourceSchema getSchema(String filename, Job job)
 			throws IOException {
-		return new ResourceSchema(protoToPig.toSchema(Protobufs
-				.getMessageDescriptor(ProtobufClassUtil.loadProtoClass(
-						clsMapping, job.getConfiguration()))));
 
+		Set<String> keys = getPartitionColumns(filename, job);
+
+		Schema schema = protoToPig.toSchema(Protobufs
+				.getMessageDescriptor(ProtobufClassUtil.loadProtoClass(
+						clsMapping, job.getConfiguration())));
+
+		if (keys != null && keys.size() > 0) {
+			for (String key : keys) {
+				// only add a partition key if the schema does no already
+				// contain a value of it.
+				if (schema.getField(key) == null) {
+					schema.add(new FieldSchema(key, DataType.CHARARRAY));
+				}
+			}
+		}
+		
+		return new ResourceSchema(schema);
 	}
 
 	@Override
@@ -234,14 +368,14 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 				requiredIndices[i] = requiredFields.get(i).getIndex();
 			}
 
-			System.out.println("RequiredIndices: "
-					+ Arrays.toString(requiredIndices));
 			// we must sort this array. The logic that reads from it required
 			// this.
 			// this is a map between the required Index and the real index
 			// e.g. [0] => maps to [3]
 			Arrays.sort(requiredIndices);
 
+			
+			System.out.println("Setting required indices: " + Arrays.toString(requiredIndices));
 			try {
 				UDFContext
 						.getUDFContext()
@@ -272,12 +406,109 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 	@Override
 	public String[] getPartitionKeys(String location, Job job)
 			throws IOException {
-		return null;
+		Set<String> partitionKeys = getPartitionColumns(location, job);
+
+		return partitionKeys == null ? new String[0] : partitionKeys
+				.toArray(new String[] {});
 	}
 
 	@Override
 	public void setPartitionFilter(Expression partitionFilter)
 			throws IOException {
+		getUDFContext().setProperty(
+				PathPartitionHelper.PARITITION_FILTER_EXPRESSION,
+				partitionFilter.toString());
+	}
+
+	/**
+	 * Reads the partition columns
+	 * 
+	 * @param location
+	 * @param job
+	 * @return
+	 */
+	private Set<String> getPartitionColumns(String location, Job job) {
+
+		if (partitionColumns == null) {
+			// read the partition columns from the UDF Context first.
+			// if not in the UDF context then read it using the PathPartitioner.
+
+			Properties properties = getUDFContext();
+
+			if (properties == null)
+				properties = new Properties();
+
+			String partitionColumnStr = properties
+					.getProperty(PathPartitionHelper.PARTITION_COLUMNS);
+			System.out.println("partitionColumnStr " + partitionColumnStr);
+
+			if (partitionColumnStr == null
+					&& !(location == null || job == null)) {
+				// if it hasn't been written yet.
+				Set<String> partitionColumnSet;
+				try {
+					partitionColumnSet = pathPartitionerHelper
+							.getPartitionKeys(location, job.getConfiguration());
+
+					System.out.println("ParitionColumnSet: "
+							+ Arrays.toString(partitionColumnSet.toArray()));
+				} catch (IOException e) {
+
+					RuntimeException rte = new RuntimeException(e);
+					rte.setStackTrace(e.getStackTrace());
+					throw rte;
+
+				}
+
+				if (partitionColumnSet != null) {
+
+					StringBuilder buff = new StringBuilder();
+
+					int i = 0;
+					for (String column : partitionColumnSet) {
+						if (i++ != 0) {
+							buff.append(',');
+						}
+
+						buff.append(column);
+					}
+
+					String buffStr = buff.toString().trim();
+
+					if (buffStr.length() > 0) {
+
+						properties.setProperty(
+								PathPartitionHelper.PARTITION_COLUMNS,
+								buff.toString());
+					}
+
+					partitionColumns = partitionColumnSet;
+
+				}
+
+			} else {
+				// the partition columns has been set already in the UDF Context
+				if (partitionColumnStr != null) {
+					String split[] = partitionColumnStr.split(",");
+					partitionColumns = new LinkedHashSet<String>();
+					if (split.length > 0) {
+						for (String splitItem : split) {
+							partitionColumns.add(splitItem);
+						}
+					}
+				}
+
+			}
+
+		}
+
+		return partitionColumns;
+
+	}
+
+	private Properties getUDFContext() {
+		return UDFContext.getUDFContext().getUDFProperties(this.getClass(),
+				new String[] { signature });
 	}
 
 }
