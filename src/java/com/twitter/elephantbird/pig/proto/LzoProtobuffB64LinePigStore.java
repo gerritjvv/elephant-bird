@@ -162,7 +162,8 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 					if (indice < len) {
 						requiredIndicesSet.add(new Integer(indice));
 					} else {
-						System.out.println("Adding index from pig: " + indice + " translate to " + (indice-len));
+						System.out.println("Adding index from pig: " + indice
+								+ " translate to " + (indice - len));
 						keysIndicesSet.add(new Integer(indice - len));
 					}
 
@@ -253,7 +254,6 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 
 							}
 
-
 							break;
 						} else {
 							incrCounter(FORMAT.BADGPB, 1l);
@@ -339,7 +339,7 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 				}
 			}
 		}
-		
+
 		return new ResourceSchema(schema);
 	}
 
@@ -374,8 +374,8 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			// e.g. [0] => maps to [3]
 			Arrays.sort(requiredIndices);
 
-			
-			System.out.println("Setting required indices: " + Arrays.toString(requiredIndices));
+			System.out.println("Setting required indices: "
+					+ Arrays.toString(requiredIndices));
 			try {
 				UDFContext
 						.getUDFContext()
@@ -429,15 +429,18 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 	 */
 	private Set<String> getPartitionColumns(String loadInputPath, Job job) {
 
-		//the loadInputPath may contain multiple paths seperated by comma.
-		//in this case we are only interested in the first path. Why? because all the logic accept
-		//that the partitioning should be uniform, so any path will contain the partitioning keys.
-		String split[] = loadInputPath.split("[,; ]");
-		if(split.length < 1){
-			throw new IOException("The input path " + loadInputPath + " cannot be empty");
+		// the loadInputPath may contain multiple paths seperated by comma.
+		// in this case we are only interested in the first path. Why? because
+		// all the logic accept
+		// that the partitioning should be uniform, so any path will contain the
+		// partitioning keys.
+		String loadInputPathSplit[] = loadInputPath.split("[,; ]");
+		if (loadInputPathSplit.length < 1) {
+			throw new RuntimeException("The input path " + loadInputPath
+					+ " cannot be empty");
 		}
-		String location = split[0];
-		
+		String location = loadInputPathSplit[0];
+
 		if (partitionColumns == null) {
 			// read the partition columns from the UDF Context first.
 			// if not in the UDF context then read it using the PathPartitioner.
