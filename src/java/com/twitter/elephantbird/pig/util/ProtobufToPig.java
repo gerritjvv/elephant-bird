@@ -259,6 +259,7 @@ public class ProtobufToPig {
 
     if (fieldDescriptor.isRepeated()) {
       Schema tupleSchema = new Schema();
+      tupleSchema.setTwoLevelAccessRequired(true);
       tupleSchema.add(new FieldSchema(fieldDescriptor.getName() + "_tuple", innerSchema, DataType.TUPLE));
       return new FieldSchema(fieldDescriptor.getName(), tupleSchema, DataType.BAG);
     } else {
