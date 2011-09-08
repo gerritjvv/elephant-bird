@@ -21,7 +21,7 @@ import com.twitter.elephantbird.util.PathPartitionHelper;
  * @param <K>
  * @param <V>
  */
-public class LzoTextPartitionFilterInputFormat extends LzoTextInputFormat {
+public class LzoTextPartitionFilterInputFormat extends com.twitter.elephantbird.mapreduce.input.LzoTextInputFormat {
 
 	transient PathPartitionHelper partitionHelper = new PathPartitionHelper();
 	Class<? extends LoadFunc> loaderClass;
@@ -74,7 +74,7 @@ public class LzoTextPartitionFilterInputFormat extends LzoTextInputFormat {
 						.getFileSystem(ctx.getConfiguration()), result
 						.getPath());
 
-				indexes_.put(result.getPath(), index);
+				super.addToIndex(result.getPath(), index);
 
 			}
 

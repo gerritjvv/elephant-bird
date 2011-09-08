@@ -429,19 +429,15 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 	 */
 	private Set<String> getPartitionColumns(String loadInputPath, Job job) {
 
-		// the loadInputPath may contain multiple paths seperated by comma.
-		// in this case we are only interested in the first path. Why? because
-		// all the logic accept
-		// that the partitioning should be uniform, so any path will contain the
-		// partitioning keys.
-		String loadInputPathSplit[] = loadInputPath.split("[,; ]");
-		if (loadInputPathSplit.length < 1) {
-			throw new RuntimeException("The input path " + loadInputPath
-					+ " cannot be empty");
-		}
-		String location = loadInputPathSplit[0];
-
+		
 		if (partitionColumns == null) {
+			String loadInputPathSplit[] = loadInputPath.split("[,; ]");
+			if (loadInputPathSplit.length < 1) {
+				throw new RuntimeException("The input path " + loadInputPath
+						+ " cannot be empty");
+			}
+			String location = loadInputPathSplit[0];
+
 			// read the partition columns from the UDF Context first.
 			// if not in the UDF context then read it using the PathPartitioner.
 

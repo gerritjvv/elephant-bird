@@ -32,6 +32,10 @@ public abstract class LzoInputFormat<K, V> extends FileInputFormat<K, V> {
 
   protected final Map<Path, LzoIndex> indexes_ = new HashMap<Path, LzoIndex>();
 
+  public void addToIndex(Path path, LzoIndex index){
+	  indexes_.put(path, index);
+  }
+  
   private final PathFilter visibleLzoFilter = new PathFilter() {
 
     @Override
