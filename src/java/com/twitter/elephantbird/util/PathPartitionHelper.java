@@ -3,6 +3,7 @@ package com.twitter.elephantbird.util;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,11 +11,11 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import javax.el.ELContext;
 import javax.el.ELResolver;
@@ -160,7 +161,7 @@ public class PathPartitionHelper {
 	 * @throws InterruptedException
 	 * @throws ExecutionException
 	 */
-	public List<FileStatus> listStatus(JobContext ctx,
+	public Collection<FileStatus> listStatus(JobContext ctx,
 			Class<? extends LoadFunc> loaderClass, String signature,
 			FilenameFilter filter) throws IOException, InterruptedException,
 			ExecutionException {
@@ -186,7 +187,7 @@ public class PathPartitionHelper {
 
 		Path[] inputPaths = FileInputFormat.getInputPaths(ctx);
 
-		final List<FileStatus> splitPaths = new ArrayList<FileStatus>();
+		final Collection<FileStatus> splitPaths = new ConcurrentLinkedQueue<FileStatus>();
 
 		final ExecutorService service = Executors.newCachedThreadPool();
 		TreeCallable<String> callable = new TreeCallable<String>(null);
@@ -265,7 +266,7 @@ public class PathPartitionHelper {
 	private void getPartitionedFiles(final ExpressionFactory expressionFactory,
 			final String partitionExpression, final FileSystem fs,
 			FileStatus fileStatus, int partitionLevel,
-			final String[] partitionKeys, final List<FileStatus> splitPaths,
+			final String[] partitionKeys, final Collection<FileStatus> splitPaths,
 			final ExecutorService service, final TreeCallable<String> callable)
 			throws IOException {
 
@@ -321,7 +322,8 @@ public class PathPartitionHelper {
 
 		} else {
 			// add file to splitPaths
-			splitPaths.add(fileStatus);
+			if(fileStatus != null)
+				splitPaths.add(fileStatus);
 		}
 	}
 

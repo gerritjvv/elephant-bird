@@ -3,9 +3,12 @@ package com.twitter.elephantbird.mapreduce.input;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -39,7 +42,7 @@ public class LzoTextPartitionFilterInputFormat extends com.twitter.elephantbird.
 	protected List<FileStatus> listStatus(final JobContext ctx)
 			throws IOException {
 
-		List<FileStatus> files = null;
+		Collection<FileStatus> files = null;
 
 		try {
 			files = partitionHelper.listStatus(ctx, loaderClass, signature,
@@ -68,20 +71,28 @@ public class LzoTextPartitionFilterInputFormat extends com.twitter.elephantbird.
 			// files and, if they
 			// have an associated index file, save that for later.
 			
+			Configuration ctxConf = ctx.getConfiguration();
 			for (final FileStatus result : files) {
-
-				LzoIndex index = LzoIndex.readIndex(result.getPath()
-						.getFileSystem(ctx.getConfiguration()), result
-						.getPath());
-
-				super.addToIndex(result.getPath(), index);
-
+				try{
+					Path path = result.getPath();
+					if(path != null){
+					  LzoIndex index = LzoIndex.readIndex(path.getFileSystem(ctxConf), path);
+					  super.addToIndex(result.getPath(), index);
+					}
+				}catch(Throwable t){
+					System.out.println("Result: " + result);
+					System.out.println("ctxConf: " + ctxConf);
+					
+					t.printStackTrace();
+					throw new RuntimeException(t);
+				}
+				
 			}
 
 		}
 
 		System.out.println("Found " + files.size() + " files");
-		return files;
+		return new ArrayList<FileStatus>(files);
 
 	}
 
