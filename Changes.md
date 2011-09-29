@@ -1,10 +1,44 @@
 # Elephant Bird #
 
+### Version 2.0.5 ###
+
+ISSUE 68. Fix isSplittable() in LzoInputFormat (rangadi)
+
+ISSUE 64. Support for lzo index files in LzoOutputFormat (rangadi)
+
+### Version 2.0.4 ###
+
+ISSUE 67. Reduce memory footprint of LzoInputFormat (dvryaboy)
+
+### Version 2.0.3 ###
+
+ISSUE 59. check if PigReporter returns a null counter (dvryaboy)
+
+ISSUE 57. fix recursion while listing lzo files (rangadi)
+
+ISSUE 55. code cleanup for Pig storage classes (rangadi)
+
+### Version 2.0.2 ###
+
+ISSUE 54. Fix Thrift and Protobuf Input/Output format initialization in Pig (rangadi)
+
+ISSUE 52. Fix Thrift and Protobuf PigStorage (dvryaboy)
+
+### Version 2.0.1 ###
+
+ISSUE 51. Fix a regression in ISSUE-49 for Thrift loaders/inputformats.
+
+ISSUE 51. Add HBaseLoader for backward compatibility (rangadi).
+
 ### Version 2.0.0 ###
 
 NO TICKET. Upgrade Pig compatibility to 0.8
 
 ### Version 1.2.6 ###
+
+ISSUE 50. Add dynamic Thrift to Proto conversion (dvryaboy)
+
+ISSUE 49. Add "deprecated" lzo b64 input/output support for Thrift (sigmoids via rangadi)
 
 ### Version 1.2.5 ###
 

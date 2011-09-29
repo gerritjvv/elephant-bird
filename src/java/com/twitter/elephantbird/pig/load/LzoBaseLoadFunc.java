@@ -6,30 +6,32 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.pig.FuncSpec;
+import org.apache.pig.Expression;
 import org.apache.pig.LoadFunc;
+import org.apache.pig.LoadMetadata;
+import org.apache.pig.ResourceSchema;
+import org.apache.pig.ResourceStatistics;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigSplit;
 import org.apache.pig.impl.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.hadoop.compression.lzo.LzopCodec;
+import com.twitter.elephantbird.mapreduce.io.BinaryWritable;
 import com.twitter.elephantbird.pig.util.PigCounterHelper;
+import com.twitter.elephantbird.util.TypeRef;
 
 /**
  * This class handles LZO-decoding and slicing input LZO files.  It expects the
  * filenames to end in .lzo, otherwise it assumes they are not compressed and skips them.
  * TODO: Improve the logic to accept a mixture of lzo and non-lzo files.
  */
-public abstract class LzoBaseLoadFunc extends LoadFunc {
+public abstract class LzoBaseLoadFunc extends LoadFunc implements LoadMetadata {
   private static final Logger LOG = LoggerFactory.getLogger(LzoBaseLoadFunc.class);
 
   protected final String LZO_EXTENSION = new LzopCodec().getDefaultExtension();
 
   protected RecordReader reader_;
-
-  // The load func spec is the load function name (with classpath) plus the arguments.
-  protected FuncSpec loadFuncSpec_;
 
   // Making accessing Hadoop counters from Pig slightly more convenient.
   private final PigCounterHelper counterHelper_ = new PigCounterHelper();
@@ -40,17 +42,6 @@ public abstract class LzoBaseLoadFunc extends LoadFunc {
    * Construct a new load func.
    */
   public LzoBaseLoadFunc() {
-    // By default, the spec is the class being loaded with no arguments.
-    setLoaderSpec(getClass(), new String[] {});
-  }
-
-  /**
-   * Set the loader spec so any arguments given in the script are tracked, to be reinstantiated by the mappers.
-   * @param clazz the class of the load function to use.
-   * @param args an array of strings that are fed to the class's constructor.
-   */
-  protected void setLoaderSpec(Class <? extends LzoBaseLoadFunc> clazz, String[] args) {
-    loadFuncSpec_ = new FuncSpec(clazz.getName(), args);
   }
 
   /**
@@ -82,9 +73,56 @@ public abstract class LzoBaseLoadFunc extends LoadFunc {
     this.jobConf = job.getConfiguration();
   }
 
+  /**
+   * A utility method for loaders that read {@link BinaryWritable} values.
+   */
+  protected <M> M getNextBinaryValue(TypeRef<M> typeRef) throws IOException {
+    //typeRef is just to help compiler resolve the type at compile time.
+    try {
+      if (reader_ != null && reader_.nextKeyValue()) {
+        @SuppressWarnings("unchecked")
+        BinaryWritable<M> writable = (BinaryWritable<M>)reader_.getCurrentValue();
+        return writable.get();
+      }
+    } catch (InterruptedException e) {
+      LOG.error("InterruptedException encountered, bailing.", e);
+      throw new IOException(e);
+    }
+
+    return null;
+  }
+
   @Override
   public void prepareToRead(RecordReader reader, PigSplit split) {
       this.reader_ = reader;
   }
 
+  @Override
+  public ResourceSchema getSchema(String filename, Job job) throws IOException {
+    // most loaders are expected to override this.
+    return null;
+  }
+
+  /*
+   * NOT IMPLEMENTED
+   */
+  @Override
+  public String[] getPartitionKeys(String arg0, Job arg1) throws IOException {
+    return null;
+  }
+
+  /*
+   * NOT IMPLEMENTED
+   */
+  @Override
+  public ResourceStatistics getStatistics(String arg0, Job arg1) throws IOException {
+    return null;
+  }
+
+  /*
+   * NOT IMPLEMENTED
+   */
+  @Override
+  public void setPartitionFilter(Expression arg0) throws IOException {
+  }
 }

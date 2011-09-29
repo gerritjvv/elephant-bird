@@ -1,6 +1,5 @@
 package com.twitter.elephantbird.mapreduce.input;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -54,25 +53,23 @@ public abstract class LzoRecordReader<K, V> extends RecordReader<K, V> {
     start_ = split.getStart();
     end_ = start_ + split.getLength();
     final Path file = split.getPath();
-    System.out.println("Split path is"+file);
     Configuration job = context.getConfiguration();
+
+    LOG.info("input split: " + file + " " + start_ + ":" + end_);
 
     FileSystem fs = file.getFileSystem(job);
     CompressionCodecFactory compressionCodecs = new CompressionCodecFactory(job);
     final CompressionCodec codec = compressionCodecs.getCodec(file);
     if (codec == null) {
-      throw new IOException("No codec for file " + file + " not found, cannot run");
+      throw new IOException("No codec for file " + file + " found, cannot run");
     }
 
     // Open the file and seek to the start of the split.
-    
     fileIn_ = fs.open(split.getPath());
-   
-    try{
+
     // Creates input stream and also reads the file header.
     createInputReader(codec.createInputStream(fileIn_), job);
-    
-    LOG.info("Seeking to split start at pos " + start_);
+
     if (start_ != 0) {
       fileIn_.seek(start_);
       skipToNextSyncPoint(false);
@@ -82,12 +79,6 @@ public abstract class LzoRecordReader<K, V> extends RecordReader<K, V> {
       skipToNextSyncPoint(true);
     }
     pos_ = start_;
-    }
-    catch(EOFException e)
-    {
-    	System.out.println(e.getMessage()+" for file "+file+", file size is "+split.getLength());
-    	pos_ = end_+1;
-    }
   }
 
   protected abstract void createInputReader(InputStream input, Configuration conf) throws IOException;

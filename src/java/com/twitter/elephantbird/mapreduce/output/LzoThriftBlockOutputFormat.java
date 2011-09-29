@@ -8,7 +8,6 @@ import com.twitter.elephantbird.util.ThriftUtils;
 import com.twitter.elephantbird.util.TypeRef;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.thrift.TBase;
@@ -22,7 +21,13 @@ import org.apache.thrift.TBase;
 public class LzoThriftBlockOutputFormat<M extends TBase<?, ?>>
     extends LzoOutputFormat<M, ThriftWritable<M>> {
 
+  protected TypeRef<M> typeRef_;
+
   public LzoThriftBlockOutputFormat() {}
+
+  public LzoThriftBlockOutputFormat(TypeRef<M> typeRef) {
+    typeRef_ = typeRef;
+  }
 
   @SuppressWarnings("unchecked")
   public static <M extends TBase<?, ?>> Class<LzoThriftBlockOutputFormat>
@@ -32,11 +37,12 @@ public class LzoThriftBlockOutputFormat<M extends TBase<?, ?>>
     return LzoThriftBlockOutputFormat.class;
   }
 
-  public RecordWriter<NullWritable, ThriftWritable<M>> getRecordWriter(TaskAttemptContext job)
+  public RecordWriter<M, ThriftWritable<M>> getRecordWriter(TaskAttemptContext job)
       throws IOException, InterruptedException {
-
-    TypeRef<M> typeRef = ThriftUtils.getTypeRef(job.getConfiguration(), LzoThriftBlockOutputFormat.class);
+    if (typeRef_ == null) {
+      typeRef_ = ThriftUtils.getTypeRef(job.getConfiguration(), LzoThriftBlockOutputFormat.class);
+    }
     return new LzoBinaryBlockRecordWriter<M, ThriftWritable<M>>(
-        new ThriftBlockWriter<M>(getOutputStream(job), typeRef.getRawClass()));
+        new ThriftBlockWriter<M>(getOutputStream(job), typeRef_.getRawClass()));
   }
 }
