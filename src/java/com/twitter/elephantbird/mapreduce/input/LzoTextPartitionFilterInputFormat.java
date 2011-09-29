@@ -71,23 +71,23 @@ public class LzoTextPartitionFilterInputFormat extends com.twitter.elephantbird.
 			// files and, if they
 			// have an associated index file, save that for later.
 			
-			Configuration ctxConf = ctx.getConfiguration();
-			for (final FileStatus result : files) {
-				try{
-					Path path = result.getPath();
-					if(path != null){
-					  LzoIndex index = LzoIndex.readIndex(path.getFileSystem(ctxConf), path);
-					  super.addToIndex(result.getPath(), index);
-					}
-				}catch(Throwable t){
-					System.out.println("Result: " + result);
-					System.out.println("ctxConf: " + ctxConf);
-					
-					t.printStackTrace();
-					throw new RuntimeException(t);
-				}
-				
-			}
+//			Configuration ctxConf = ctx.getConfiguration();
+//			for (final FileStatus result : files) {
+//				try{
+//					Path path = result.getPath();
+//					if(path != null){
+//					  LzoIndex index = LzoIndex.readIndex(path.getFileSystem(ctxConf), path);
+//					  super.addToIndex(result.getPath(), index);
+//					}
+//				}catch(Throwable t){
+//					System.out.println("Result: " + result);
+//					System.out.println("ctxConf: " + ctxConf);
+//					
+//					t.printStackTrace();
+//					throw new RuntimeException(t);
+//				}
+//				
+//			}
 
 		}
 
