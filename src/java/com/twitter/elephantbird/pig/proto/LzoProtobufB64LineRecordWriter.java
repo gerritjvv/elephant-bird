@@ -39,7 +39,11 @@ public class LzoProtobufB64LineRecordWriter extends
 	transient protected Message.Builder builder;
 	transient protected final PigToProtobuf pigToProto = new PigToProtobuf();
 
-	transient protected final Base64 base64 = new Base64();
+	/**
+	 * https://issues.apache.org/jira/browse/CODEC-89<br/>
+	 * Ensures that no chunking is applied every 76 characters.
+	 */
+	transient protected final Base64 base64 = new Base64(0);
 
 	Class<? extends Message> protoClass;
 
