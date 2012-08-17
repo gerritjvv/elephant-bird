@@ -429,9 +429,8 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 	 */
 	private Set<String> getPartitionColumns(String loadInputPath, Job job) {
 
-		
 		if (partitionColumns == null) {
-			
+
 			// read the partition columns from the UDF Context first.
 			// if not in the UDF context then read it using the PathPartitioner.
 
@@ -447,15 +446,14 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 			if (partitionColumnStr == null
 					&& !(loadInputPath == null || job == null)) {
 				// if it hasn't been written yet.
-				
+
 				String loadInputPathSplit[] = loadInputPath.split("[,; ]");
 				if (loadInputPathSplit.length < 1) {
-					throw new RuntimeException("The input path " + loadInputPath
-							+ " cannot be empty");
+					throw new RuntimeException("The input path "
+							+ loadInputPath + " cannot be empty");
 				}
 				String location = loadInputPathSplit[0];
 
-				
 				Set<String> partitionColumnSet;
 				try {
 					partitionColumnSet = pathPartitionerHelper
