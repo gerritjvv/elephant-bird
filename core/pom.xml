@@ -80,7 +80,7 @@
         </executions>
       </plugin>
 
-      <!-- thrift -->
+       
       <plugin>
         <groupId>org.apache.thrift.tools</groupId>
         <artifactId>maven-thrift-plugin</artifactId>
@@ -101,7 +101,6 @@
           </execution>
         </executions>
       </plugin>
-
       <!-- add generated sources -->
       <plugin>
         <groupId>org.codehaus.mojo</groupId>

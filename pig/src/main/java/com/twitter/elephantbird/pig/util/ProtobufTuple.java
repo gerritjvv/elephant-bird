@@ -1,10 +1,21 @@
 package com.twitter.elephantbird.pig.util;
 
+import java.io.DataInput;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 
-import com.google.protobuf.Message;
+import org.apache.pig.backend.executionengine.ExecException;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
+
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
+import com.google.protobuf.Message;
+import com.google.protobuf.Message.Builder;
+import com.twitter.elephantbird.pig.util.ProtobufToPig;
 
 @SuppressWarnings("serial")
 /**

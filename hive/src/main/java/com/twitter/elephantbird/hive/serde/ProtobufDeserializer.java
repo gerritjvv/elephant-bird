@@ -1,19 +1,20 @@
 package com.twitter.elephantbird.hive.serde;
 
-import com.google.protobuf.Message;
-import com.google.protobuf.Descriptors.Descriptor;
-import com.twitter.elephantbird.mapreduce.io.ProtobufConverter;
-import com.twitter.elephantbird.util.Protobufs;
+import java.util.Properties;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeStats;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-import java.util.Properties;
+import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Message;
+import com.twitter.elephantbird.mapreduce.io.ProtobufConverter;
+import com.twitter.elephantbird.util.Protobufs;
 
 /**
  * A deserializer for protobufs. Expects protbuf serialized bytes as
@@ -33,7 +34,8 @@ public class ProtobufDeserializer implements Deserializer {
 
   private ProtobufConverter<? extends Message> protobufConverter = null;
   private ObjectInspector objectInspector;
-
+  
+  
   @Override
   public void initialize(Configuration job, Properties tbl) throws SerDeException {
     try {
@@ -50,11 +52,14 @@ public class ProtobufDeserializer implements Deserializer {
       throw new SerDeException(e);
     }
   }
-
+  
   @Override
   public Object deserialize(Writable blob) throws SerDeException {
-    BytesWritable bytes = (BytesWritable) blob;
-    return protobufConverter.fromBytes(bytes.getBytes(), 0, bytes.getLength());
+	Text t = (Text)blob;
+	
+	byte[] data = Base64.decodeBase64(t.getBytes());
+			
+    return protobufConverter.fromBytes(data, 0, data.length);
   }
 
   @Override

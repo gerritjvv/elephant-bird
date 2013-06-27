@@ -1,12 +1,11 @@
 package com.twitter.elephantbird.pig.util;
 
-<<<<<<< HEAD:src/java/com/twitter/elephantbird/pig/util/ProtobufToPig.java
 import java.lang.reflect.InvocationTargetException;
-=======
 import java.util.Collections;
->>>>>>> upstream/master:pig/src/main/java/com/twitter/elephantbird/pig/util/ProtobufToPig.java
 import java.util.List;
 import java.util.Map;
+
+import com.twitter.data.proto.Misc.CountedMap;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -16,7 +15,6 @@ import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
-import com.twitter.data.proto.Misc.CountedMap;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.data.DataBag;
 import org.apache.pig.data.DataByteArray;
@@ -113,15 +111,7 @@ public class ProtobufToPig {
    * @return the object representing fieldValue in Pig -- either a bag or a tuple.
    */
   @SuppressWarnings("unchecked")
-<<<<<<< HEAD:src/java/com/twitter/elephantbird/pig/util/ProtobufToPig.java
  public Object messageToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
-=======
-  protected Object messageToTuple(FieldDescriptor fieldDescriptor, Object fieldValue) {
-    if (fieldValue == null) {
-      // protobufs unofficially ensures values are not null. just in case:
-      return null;
-    }
->>>>>>> upstream/master:pig/src/main/java/com/twitter/elephantbird/pig/util/ProtobufToPig.java
     assert fieldDescriptor.getType() == FieldDescriptor.Type.MESSAGE : "messageToTuple called with field of type " + fieldDescriptor.getType();
 
     if (fieldDescriptor.isRepeated()) {
