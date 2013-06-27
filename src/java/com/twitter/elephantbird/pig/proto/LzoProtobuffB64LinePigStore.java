@@ -330,16 +330,22 @@ public class LzoProtobuffB64LinePigStore extends PigStorage implements
 				.getMessageDescriptor(ProtobufClassUtil.loadProtoClass(
 						clsMapping, job.getConfiguration())));
 
+		
+		System.out.println("LZOPrptoBuffB64LinePigStore:getSchema: schema: " + schema);
 		if (keys != null && keys.size() > 0) {
 			for (String key : keys) {
 				// only add a partition key if the schema does no already
 				// contain a value of it.
+
+				System.out.println("LZOPrptoBuffB64LinePigStore:getSchema: schema: " + key);
 				if (schema.getField(key) == null) {
 					schema.add(new FieldSchema(key, DataType.CHARARRAY));
 				}
 			}
 		}
 
+
+		System.out.println("LZOPrptoBuffB64LinePigStore:getSchema: schema: " + new ResourceSchema(schema));
 		return new ResourceSchema(schema);
 	}
 

@@ -68,7 +68,7 @@
 
   <target name="nonothing" depends="init">
    <echo message="building without protobuf and thrift support" />
-   <property name="noprotobuf" value="yes" />
+   <!-- <property name="noprotobuf" value="yes" /> -->
    <property name="nothrift" value="yes" />
    <compile-nonothing />
   </target>
@@ -139,13 +139,14 @@
       </sequential>
     </macrodef>
 
+<!-- 
   <macrodef name="generate-thrift">
       <sequential>
-        <!-- ensure Thrift 0.5.x -->   
-        <exec executable="thrift" outputproperty="thrift.version.string">
+ 
+       <exec executable="thrift" outputproperty="thrift.version.string">
           <arg value="-version"/>
         </exec>
-        <fail message="Thrift 0.5.x required for thrift support. The local version is '${thrift.version.string}'">
+       <fail message="Thrift 0.5.x required for thrift support. The local version is '${thrift.version.string}'">
           <condition> 
             <not> 
               <contains string="${thrift.version.string}" substring="Thrift version 0.6."/>
@@ -155,15 +156,11 @@
         <mkdir dir="${src.gen.java.dir}" />
         <apply executable="thrift" failonerror="true" skipemptyfilesets="true" verbose="true">
           <env key="PATH" path="${env.PATH}:." />
-          <arg value="--gen" />
-          <arg value="java" />
-          <arg value="-o" />
-          <arg value="${src.gen.java.dir}/.." />
           <fileset dir="${src.thrift.dir}" includes="**/*.thrift" />
         </apply>
       </sequential>
     </macrodef>
-
+-->
   <macrodef name="compile-generated-protobuf">
     <sequential>
       <javac srcdir="${src.gen.java.dir}" destdir="${classes.dir}" deprecation="on">
@@ -178,7 +175,6 @@
   </macrodef>
 
   <target name="compile-protobuf" depends="init" unless="noprotobuf">
-    <generate-thrift />
     <generate-protobuf />
     <compile-generated-protobuf />
     <compile-java-protobuf />
