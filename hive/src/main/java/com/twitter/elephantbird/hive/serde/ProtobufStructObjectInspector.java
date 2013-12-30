@@ -1,6 +1,15 @@
 package com.twitter.elephantbird.hive.serde;
 
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
+import org.apache.hadoop.hive.serde2.objectinspector.SettableStructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 
 import com.google.common.collect.Lists;
 import com.google.protobuf.Descriptors.Descriptor;
@@ -9,13 +18,6 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor.JavaType;
 import com.google.protobuf.Descriptors.FieldDescriptor.Type;
 import com.google.protobuf.Message;
-
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
-import org.apache.hadoop.hive.serde2.objectinspector.SettableStructObjectInspector;
-import org.apache.hadoop.hive.serde2.objectinspector.StructField;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 
 public final class ProtobufStructObjectInspector extends SettableStructObjectInspector {
 
@@ -157,7 +159,16 @@ public final class ProtobufStructObjectInspector extends SettableStructObjectIns
     FieldDescriptor fieldDescriptor = psf.getFieldDescriptor();
     Object result = m.getField(fieldDescriptor);
     if (fieldDescriptor.getType() == Type.ENUM) {
-      return ((EnumValueDescriptor)result).getName();
+     if(result instanceof List)
+    	 return ((List)result).get(fieldDescriptor.getIndex());
+     else if(result instanceof Collection){
+    	 Iterator it = ((Collection)result).iterator();
+    	 for(int i = 0; i < fieldDescriptor.getIndex(); i++)
+    			 it.next();
+    	 
+    	 return it.hasNext() ? it.next() : null;
+     }else
+    	return ((EnumValueDescriptor)result).getName();
     }
     return result;
   }
