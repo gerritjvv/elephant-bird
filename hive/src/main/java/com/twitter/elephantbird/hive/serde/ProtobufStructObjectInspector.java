@@ -174,9 +174,6 @@ public final class ProtobufStructObjectInspector extends
 	private Object toJava(FieldDescriptor fieldDescriptor, Object result) {
 
 		if (result instanceof Collection) {
-			System.out
-					.println("Got field descriptor enum: but the data is a collection: "
-							+ Arrays.toString(((Collection) result).toArray()));
 
 			final Collection coll = (Collection) result;
 			final List l = new ArrayList();
